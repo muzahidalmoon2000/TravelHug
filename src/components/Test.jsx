@@ -6,8 +6,7 @@ function Test() {
     const handleApiCall = async () => {
         try {
             const response = await apiClient.get('/app/health/live'); // Replace with your API endpoint
-            const result = await response.json();
-            setData(result);
+            setData(response);
         } catch (error) {
             console.error('Error fetching data:', error);
         }
