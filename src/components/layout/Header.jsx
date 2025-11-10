@@ -18,9 +18,6 @@ export default function Header() {
           <a className="hover:text-teal-700" href="#blog">Blog</a>
           <a className="hover:text-teal-700" href="#contact">Contact</a>
         </nav>
-        <a href="tel:18002228888" className="hidden sm:inline-flex items-center gap-2 text-teal-700 font-semibold">
-          <Phone size={18} /> 1-800-222-8888
-        </a>
       </Container>
     </header>
   );

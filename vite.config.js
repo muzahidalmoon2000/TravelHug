@@ -4,13 +4,4 @@ import tailwindcss from '@tailwindcss/vite'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-  server: {
-    proxy: {
-      '/app': {
-        target: 'https://api.travelhug.ai',
-        changeOrigin: true,
-        secure: false,
-      },
-    },
-  },
 })

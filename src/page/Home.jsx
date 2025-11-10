@@ -3,7 +3,6 @@ import Header from "../components/layout/Header.jsx";
 import Footer from "../components/layout/Footer.jsx";
 
 import HeroPlanner from "../sections/HeroPlanner.jsx";
-import PlanSection from "../sections/PlanSection.jsx";
 import HowToGetIn from "../sections/HowToGetIn.jsx";
 import AboutUs from "../sections/AboutUs.jsx";
 import Testimonials from "../sections/Testimonials.jsx";
@@ -16,7 +15,6 @@ export default function Home() {
       <PromoBar />
       <Header />
       <HeroPlanner />
-      <PlanSection />
       <HowToGetIn />
       <AboutUs />
       <Testimonials />

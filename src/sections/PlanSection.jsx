@@ -1,5 +1,6 @@
 // src/sections/PlanSection.jsx
-import { useState } from "react";
+import { useMemo, useState, useEffect } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import Container from "../components/ui/Container.jsx";
 import {
   Clock3,
@@ -8,6 +9,15 @@ import {
   Edit3,
   Sparkles,
   Landmark,
+  Cloud,
+  Sunrise,
+  Sunset,
+  Wind,
+  Droplets,
+  Gauge,
+  Eye,
+  CloudRain,
+  Thermometer
 } from "lucide-react";
 
 /** Design tokens */
@@ -27,121 +37,251 @@ const c = {
   sub: "#475569",
 };
 
-const DAYS = ["Day 1", "Day 2", "Day 3", "Day 4", "Day 5"];
-const TABS = ["Mormimg", "Morning", "Evening", "Weather"];
-
-/** Mock cards (swap with your data) */
-const CARDS = [
-  { kind: "must", title: "Notre-Dame Cathedral Visit", blurb: "Start your day with a visit to the historic Notre-Dame Cathedral, taking in its Gothic architecture and learning about its rich history. The clear morning light adds to the beauty of the cathedral’s stained glass windows." },
-  { kind: "must", title: "Notre-Dame Cathedral Visit", blurb: "Start your day with a visit to the historic Notre-Dame Cathedral, taking in its Gothic architecture and learning about its rich history. The clear morning light adds to the beauty of the cathedral’s stained glass windows." },
-  { kind: "must", title: "Notre-Dame Cathedral Visit", blurb: "Start your day with a visit to the historic Notre-Dame Cathedral, taking in its Gothic architecture and learning about its rich history. The clear morning light adds to the beauty of the cathedral’s stained glass windows." },
-  { kind: "side", title: "Riverbank Bookstalls", blurb: "Browse the historic riverbank bookstalls, known as “bouquinistes”, which offer a wide range of books, souvenirs, and collectibles. The morning is a great time to avoid crowds." },
-  { kind: "side", title: "Riverbank Bookstalls", blurb: "Browse the historic riverbank bookstalls, known as “bouquinistes”, which offer a wide range of books, souvenirs, and collectibles. The morning is a great time to avoid crowds." },
-  { kind: "side", title: "Riverbank Bookstalls", blurb: "Browse the historic riverbank bookstalls, known as “bouquinistes”, which offer a wide range of books, souvenirs, and collectibles. The morning is a great time to avoid crowds." },
+const TABS = [
+  { label: "Morning", value: "morning" },
+  { label: "Afternoon", value: "afternoon" },
+  { label: "Evening", value: "evening" },
+  { label: "Weather", value: "weather" },
 ];
 
-export default function PlanSection() {
-  const [activeDay, setActiveDay] = useState(0);
-  const [tab, setTab] = useState("morning"); // morning | evening | weather
+/* ------------ API -> UI helpers ------------ */
+function splitCards(block) {
+  if (!block) return { must: [], side: [] };
+  const must = (block.must_do || []).map((m) => ({
+    kind: "must",
+    title: m.title,
+    blurb: m.activity,
+    duration: m.duration,
+    price: m.price || (m.is_free ? "Free" : undefined),
+    map: m.map_location,
+  }));
+  const side = (block.side_activities || []).map((s) => ({
+    kind: "side",
+    title: s.title,
+    blurb: s.activity,
+    duration: s.duration,
+    price: s.price || (s.is_free ? "Free" : undefined),
+    map: s.map_location,
+  }));
+  return { must, side };
+}
 
-  // underline position (4 equal tabs → 25% each)
-  const tabIndex = tab === "morning" ? 1 : tab === "evening" ? 2 : 3; // keep index 1 for "Morning"
-  const underlineLeft = `${(tabIndex / 4) * 100}%`;
-  const underlineWidth = "25%";
+function dayLabel(idx) {
+  return `Day ${idx + 1}`;
+}
+function formatDate(iso) {
+  try {
+    const d = new Date(iso);
+    return d.toLocaleDateString(undefined, {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+  } catch {
+    return iso;
+  }
+}
+
+/* ------------ Component ------------ */
+export default function PlanSection() {
+  const { state } = useLocation();
+  const navigate = useNavigate();
+
+  const fromState = state?.plan ?? null;
+  const fromStorage = !fromState ? safeParse(localStorage.getItem("lastPlan")) : null;
+  const plan = fromState || fromStorage;
+
+  useEffect(() => {
+    if (!plan) navigate("/", { replace: true });
+  }, [plan, navigate]);
+  if (!plan) return null;
+
+  // supports both shapes: {plan:{...}} or flat
+  const root = plan?.plan ?? plan;
+
+  const itinerary = root?.itinerary;
+  const destination = itinerary?.destination || root?.preferences?.destination || "—";
+  const days = itinerary?.days || [];
+  const firstDayDate = days[0]?.day_date ? formatDate(days[0].day_date) : "";
+
+  const [activeDay, setActiveDay] = useState(0);
+  const [tab, setTab] = useState("morning");
+
+  const underlineIndex = TABS.findIndex((t) => t.value === tab);
+  const underlineLeft = `${(underlineIndex / TABS.length) * 100}%`;
+  const underlineWidth = `${(1 / TABS.length) * 100}%`;
+
+  const dayData = days[activeDay] || {};
+  const morning = useMemo(() => splitCards(dayData.morning), [dayData]);
+  const afternoon = useMemo(() => splitCards(dayData.afternoon), [dayData]);
+  const evening = useMemo(() => splitCards(dayData.evening), [dayData]);
+  const weather = dayData.weather;
+
+  const intro =
+    (tab === "morning" && dayData.morning?.description) ||
+    (tab === "afternoon" && dayData.afternoon?.description) ||
+    (tab === "evening" && dayData.evening?.description) ||
+    itinerary?.title ||
+    `Your personalized plan for ${destination}.`;
+
+  const panelLeftTitle = "Food & Culture";
+  const panelLeftBody =
+    dayData.notes?.lunch_suggestion ||
+    dayData.notes?.breakfast_suggestion ||
+    "Local food & culture highlights for this day.";
+
+  const panelRightTitle = tab === "weather" ? "Weather Tips" : "Travel Tips";
+  const panelRightBody =
+    (tab !== "weather" &&
+      (dayData.morning?.weather_tips ||
+        dayData.afternoon?.weather_tips ||
+        dayData.evening?.weather_tips)) ||
+    weatherTipsFrom(weather) ||
+    "Carry water, sunscreen, and respect local customs.";
+
+  // pick the right set for the tab
+  const dataForTab =
+    tab === "morning" ? morning : tab === "afternoon" ? afternoon : evening;
 
   return (
     <section id="plan" style={{ background: c.bg }}>
       <Container>
         <div className="py-10">
           {/* Title */}
-          <h3 className="text-[28px] sm:text-[32px] font-extrabold" style={{ color: c.text }}>
-            Phuket, Thailand – 5-Day Travel Plan
+          <h3
+            className="text-[28px] sm:text-[32px] font-extrabold"
+            style={{ color: c.text }}
+          >
+            {destination ? `${destination} – ${days.length}-Day Travel Plan` : "Travel Plan"}
           </h3>
-          <div className="mt-1 text-[18px] font-semibold" style={{ color: c.orange }}>
-            14 September 2025
-          </div>
+          {firstDayDate && (
+            <div
+              className="mt-1 text-[18px] font-semibold"
+              style={{ color: c.orange }}
+            >
+              {firstDayDate}
+            </div>
+          )}
 
-          {/* DAYS BAR – full width */}
+          {/* Days bar */}
           <div className="mt-5 w-full">
-            <div className="rounded-[12px] border p-3 flex flex-wrap gap-3" style={{ borderColor: c.border, background: c.card }}>
-              {DAYS.map((d, i) => (
+            <div
+              className="rounded-[12px] border p-3 flex flex-wrap gap-3"
+              style={{ borderColor: c.border, background: c.card }}
+            >
+              {days.map((_, i) => (
                 <button
-                  key={d}
+                  key={i}
                   onClick={() => setActiveDay(i)}
-                  className="px-6 h-10 rounded-full text-[15px] font-semibold border transition"
+                  className="px-6 h-10 rounded-[5px] text-[15px] font-semibold border transition"
                   style={{
                     background: activeDay === i ? c.teal : c.pill,
                     color: activeDay === i ? "#fff" : "#0F172A",
                     borderColor: activeDay === i ? c.teal : c.borderSoft,
                   }}
                 >
-                  {d}
+                  {dayLabel(i)}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* FEATURE CARD – contains Morning/Evening/Weather tabs (full width) */}
-          <div className="mt-4 rounded-[12px] border overflow-hidden" style={{ borderColor: c.border, background: c.card }}>
-            {/* Sub-tabs header */}
+          {/* Feature card (tabs + content) */}
+          <div
+            className="mt-4 rounded-[12px] border overflow-hidden"
+            style={{ borderColor: c.border, background: c.card }}
+          >
+            {/* Sub-tabs */}
             <div className="px-6 pt-3">
               <div className="relative flex">
-                {TABS.map((label, i) => {
-                  const target =
-                    i === 3 ? "weather" : i === 2 ? "evening" : "morning";
-                  const active =
-                    (tab === "morning" && (i === 0 || i === 1)) ||
-                    (tab === "evening" && i === 2) ||
-                    (tab === "weather" && i === 3);
-                return (
-                  <button
-                    key={label}
-                    onClick={() => setTab(target)}
-                    className={`flex-1 py-3 text-[15px] font-semibold transition ${
-                      active ? "text-[#0F766E]" : "text-[#94A3B8]"
-                    }`}
-                  >
-                    {label}
-                  </button>
-                )})}
-                {/* gray line */}
-                <div className="absolute left-0 right-0 bottom-0 h-px" style={{ background: c.border }} />
-                {/* orange underline */}
+                {TABS.map((t) => {
+                  const active = t.value === tab;
+                  return (
+                    <button
+                      key={t.value}
+                      onClick={() => setTab(t.value)}
+                      className={`flex-1 py-3 text-[15px] font-semibold transition ${
+                        active ? "text-[#0F766E]" : "text-[#94A3B8]"
+                      }`}
+                    >
+                      {t.label}
+                    </button>
+                  );
+                })}
+                <div
+                  className="absolute left-0 right-0 bottom-0 h-px"
+                  style={{ background: c.border }}
+                />
                 <div
                   className="absolute bottom-0 h-[3px] rounded-full transition-all duration-200"
-                  style={{ background: c.orange, left: underlineLeft, width: underlineWidth }}
+                  style={{
+                    background: c.orange,
+                    left: underlineLeft,
+                    width: underlineWidth,
+                  }}
                 />
               </div>
             </div>
 
             {/* Body */}
-            <div className="px-6 pt-6">
+            <div className="px-6 pt-6 pb-6">
               {/* Intro */}
               <div>
                 <div className="font-semibold" style={{ color: c.text }}>
-                  Discovering Phuket, Thailand
+                  {dayData.title || `Day ${activeDay + 1}`}
                 </div>
-                <p className="mt-1 max-w-4xl leading-relaxed" style={{ color: c.sub }}>
-                  Start with a stroll through Old Town, where colorful Sino-Portuguese buildings, cafés, and the scent of fresh desserts
-                  fill the air. Listen to the quiet morning and the gentle hum of scooters waking the city.
+                <p
+                  className="mt-1 max-w-4xl leading-relaxed"
+                  style={{ color: c.sub }}
+                >
+                  {intro}
                 </p>
               </div>
 
-              {/* Cards 3×2 */}
-              <div className="mt-5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {getCardsFor(tab).map((card, i) => (
-                  <ActivityCard key={i} kind={card.kind} title={card.title} blurb={card.blurb} />
-                ))}
-              </div>
-
-              {/* Bottom panels */}
-              <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4 pb-6">
-                <Panel title="Food & Culture" body="Start with a Thai iced coffee and roti pancake from a local beach stall." />
-                <Panel
-                  title="Weather Tips"
-                  body="As the evening cools down, consider bringing a light jacket. Clear skies are perfect for sunset photos."
+              {tab === "weather" ? (
+                <WeatherBoard
+                  destination={destination}
+                  date={dayData.day_date}
+                  w={weather}
                 />
-              </div>
+              ) : (
+                <>
+                  {/* Must-Do row */}
+                  <h4 className="mt-6 mb-2 text-slate-700 font-semibold flex items-center gap-2">
+                    <Sparkles size={16} className="text-[#0F766E]" /> Must-Do
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {dataForTab.must.length > 0 ? (
+                      dataForTab.must.map((card, i) => (
+                        <ActivityCard key={`must-${tab}-${i}`} {...card} />
+                      ))
+                    ) : (
+                      <EmptyHint text="No must-do activities provided for this block." />
+                    )}
+                  </div>
+
+                  {/* Side-Activities row */}
+                  <h4 className="mt-6 mb-2 text-slate-700 font-semibold flex items-center gap-2">
+                    <Landmark size={16} className="text-[#0F766E]" /> Side
+                    Activities
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {dataForTab.side.length > 0 ? (
+                      dataForTab.side.map((card, i) => (
+                        <ActivityCard key={`side-${tab}-${i}`} {...card} />
+                      ))
+                    ) : (
+                      <EmptyHint text="No side activities provided for this block." />
+                    )}
+                  </div>
+
+                  {/* Panels */}
+                  <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Panel title={panelLeftTitle} body={panelLeftBody} />
+                    <Panel title={panelRightTitle} body={panelRightBody} />
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -150,31 +290,105 @@ export default function PlanSection() {
   );
 }
 
-/* Helpers */
-function getCardsFor(tab) {
-  if (tab === "weather") {
-    return CARDS.slice(3, 6); // just show side-activity style under Weather (for symmetry)
+/* ------------ Weather board (app-like) ------------ */
+function WeatherBoard({ destination, date, w }) {
+  if (!w) {
+    return (
+      <div className="mt-4 rounded-[12px] border border-[#EFE7E1] p-6 bg-[#F8FEFF]">
+        <p className="text-slate-600">No weather data for this day.</p>
+      </div>
+    );
   }
-  if (tab === "evening") {
-    return [...CARDS.slice(1, 3), ...CARDS.slice(3)]; // mix
-  }
-  return CARDS; // morning default
+
+  const hi = isNum(w.temp_max) ? Math.round(w.temp_max) : "—";
+  const lo = isNum(w.temp_min) ? Math.round(w.temp_min) : "—";
+  const rain = isNum(w.chance_rain) ? Math.round(w.chance_rain) : "—";
+  const wind = isNum(w.wind_speed_kph) ? Math.round(w.wind_speed_kph) : "—";
+  const humid = isNum(w.humidity) ? Math.round(w.humidity) : "—";
+  const press = isNum(w.pressure_mb) ? Math.round(w.pressure_mb) : "—";
+  const vis = isNum(w.visibility_km) ? Math.round(w.visibility_km) : "—";
+  const cloud = isNum(w.cloud_cover) ? Math.round(w.cloud_cover) : "—";
+  const precip = isNum(w.precip_mm) ? Math.round(w.precip_mm) : "—";
+
+  return (
+    <div className="mt-4 grid grid-cols-1 xl:grid-cols-3 gap-4">
+      {/* Left: hero summary */}
+      <div className="xl:col-span-1 rounded-[12px] border" style={{ borderColor: c.border, background: c.tealSoft }}>
+        <div className="p-5">
+          <div className="text-slate-600 text-sm">{destination} · {formatDate(date)}</div>
+          <div className="mt-2 flex items-center gap-3">
+            <div className="rounded-2xl bg-white/70 p-3 border" style={{ borderColor: c.tealMustBorder }}>
+              <Cloud size={42} className="text-[#0F766E]" />
+            </div>
+            <div>
+              <div className="text-4xl font-bold text-slate-900">{hi}°C</div>
+              <div className="text-slate-600">Low {lo}°C</div>
+            </div>
+          </div>
+          <div className="mt-3 text-slate-700 font-medium">{w.summary || w.condition || "—"}</div>
+
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <MiniStat icon={<CloudRain size={16} />} label="Rain" value={`${rain}%`} />
+            <MiniStat icon={<Droplets size={16} />} label="Humidity" value={`${humid}%`} />
+            <MiniStat icon={<Wind size={16} />} label="Wind" value={`${wind} kph`} />
+            <MiniStat icon={<Gauge size={16} />} label="Pressure" value={`${press} mb`} />
+          </div>
+        </div>
+      </div>
+
+      {/* Right: details grid */}
+      <div className="xl:col-span-2 rounded-[12px] border bg-white" style={{ borderColor: c.border }}>
+        <div className="p-5 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <DetailTile icon={<Sunrise size={18} />} title="Sunrise" value={w.sunrise || "—"} />
+          <DetailTile icon={<Sunset size={18} />} title="Sunset" value={w.sunset || "—"} />
+          <DetailTile icon={<Thermometer size={18} />} title="Feels Like" value={isNum(w.feels_like_c) ? `${Math.round(w.feels_like_c)}°C` : "—"} />
+          <DetailTile icon={<Eye size={18} />} title="Visibility" value={`${vis} km`} />
+          <DetailTile icon={<Cloud size={18} />} title="Cloud Cover" value={`${cloud}%`} />
+          <DetailTile icon={<CloudRain size={18} />} title="Precipitation" value={`${precip} mm`} />
+        </div>
+      </div>
+    </div>
+  );
 }
 
-/* Pieces */
-function ActivityCard({ kind = "must", title, blurb }) {
+function MiniStat({ icon, label, value }) {
+  return (
+    <div className="flex items-center gap-2 rounded-lg bg-white/70 border px-3 py-2" style={{ borderColor: c.tealMustBorder }}>
+      <div className="text-[#0F766E]">{icon}</div>
+      <div className="text-sm">
+        <div className="text-slate-500">{label}</div>
+        <div className="font-semibold text-slate-800">{value}</div>
+      </div>
+    </div>
+  );
+}
+function DetailTile({ icon, title, value }) {
+  return (
+    <div className="rounded-xl border p-3 bg-[#F9FAFB]" style={{ borderColor: c.border }}>
+      <div className="flex items-center gap-2 text-slate-700 font-medium">
+        <span className="text-[#0F766E]">{icon}</span> {title}
+      </div>
+      <div className="mt-1 text-slate-900 font-semibold">{value}</div>
+    </div>
+  );
+}
+
+/* ------------ Pieces (activity rows) ------------ */
+function ActivityCard({ kind = "must", title, blurb, duration, price, map }) {
   const isMust = kind === "must";
   const bg = isMust ? c.tealSoft : c.tealSide;
   const border = isMust ? c.tealMustBorder : c.tealSideBorder;
   const Icon = isMust ? Sparkles : Landmark;
 
   return (
-    <div className="rounded-[12px] border overflow-hidden" style={{ background: bg, borderColor: border }}>
-      {/* header */}
+    <div
+      className="rounded-[12px] border overflow-hidden"
+      style={{ background: bg, borderColor: border }}
+    >
       <div className="px-3 pt-3 flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm text-[#0B3F3B]">
           <Icon size={16} className="text-[#0F766E]" />
-          <span className="font-semibold">{isMust ? "Must-Do" : "Side Activities"}</span>
+          <span className="font-semibold">{isMust ? "Must-Do" : "Side Activity"}</span>
         </div>
         <button
           className="inline-flex items-center gap-1 text-[12px] font-semibold text-white px-3 py-1 rounded-full"
@@ -184,17 +398,37 @@ function ActivityCard({ kind = "must", title, blurb }) {
         </button>
       </div>
 
-      {/* content */}
       <div className="px-3 pb-3">
-        <a className="mt-1 block font-semibold underline" style={{ color: c.teal }} href="#">
+        <div className="mt-1 font-semibold" style={{ color: c.teal }}>
           {title}
-        </a>
-        <p className="mt-1 text-[13px] leading-relaxed text-slate-600">{blurb}</p>
+        </div>
+        {blurb && (
+          <p className="mt-1 text-[13px] leading-relaxed text-slate-600">
+            {blurb}
+          </p>
+        )}
 
-        <div className="mt-3 flex items-center gap-3 text-xs text-slate-600">
-          <span className="inline-flex items-center gap-1"><Clock3 size={14} /> 1–2 hours</span>
-          <span className="inline-flex items-center gap-1"><BadgeDollarSign size={14} /> Free, but donations are welcome</span>
-          <span className="inline-flex items-center gap-1"><MapPin size={14} /> Easy to browse</span>
+        <div className="mt-3 flex items-center justify-between gap-3 text-xs text-slate-600">
+          <span className="inline-flex items-center gap-1">
+            <Clock3 size={14} /> {duration || "1–2 hours"}
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <BadgeDollarSign size={14} /> {price || "Free or small entry fee"}
+          </span>
+          <span className="inline-flex items-center gap-1">
+            {map ? (
+              <a
+                href={map}
+                target="_blank"
+                rel="noreferrer"
+                className="underline flex items-center gap-1 bg-amber-600 p-2 rounded-full"
+              >
+                <MapPin size={14} color="white" />
+              </a>
+            ) : (
+              <MapPin size={14} />
+            )}
+          </span>
         </div>
       </div>
     </div>
@@ -203,11 +437,82 @@ function ActivityCard({ kind = "must", title, blurb }) {
 
 function Panel({ title, body }) {
   return (
-    <div className="rounded-[12px] border bg-white" style={{ borderColor: c.border }}>
+    <div
+      className="rounded-[12px] border bg.white"
+      style={{ borderColor: c.border }}
+    >
       <div className="px-4 py-3 flex items-center gap-2">
-        <span className="font-semibold" style={{ color: c.text }}>{title}</span>
+        {title?.toLowerCase().includes("weather") ? (
+          <Cloud size={18} className="text-[#0F766E]" />
+        ) : null}
+        <span className="font-semibold" style={{ color: c.text }}>
+          {title}
+        </span>
       </div>
-      <div className="px-4 pb-4 text-[14px] leading-relaxed" style={{ color: c.sub }}>{body}</div>
+      <div
+        className="px-4 pb-4 text-[14px] leading-relaxed"
+        style={{ color: c.sub }}
+      >
+        {body}
+      </div>
+    </div>
+  );
+}
+
+/* ------------ utils ------------ */
+function isNum(n) {
+  return typeof n === "number" && !isNaN(n);
+}
+function safeParse(s) {
+  try {
+    return JSON.parse(s || "null");
+  } catch {
+    return null;
+  }
+}
+
+/** Build a friendly tip from the weather record (dynamic from plan data) */
+function weatherTipsFrom(w) {
+  if (!w) return null;
+
+  const parts = [];
+
+  if (isNum(w.temp_min) && isNum(w.temp_max)) {
+    parts.push(`Temps ${Math.round(w.temp_min)}–${Math.round(w.temp_max)}°C`);
+  }
+
+  if (isNum(w.chance_rain)) {
+    const chance = Math.round(w.chance_rain);
+    parts.push(
+      chance >= 40
+        ? "Pack a light rain jacket/umbrella"
+        : chance > 0
+        ? "Low rain chance—bring a compact umbrella just in case"
+        : "No rain expected"
+    );
+  }
+
+  if (isNum(w.wind_speed_kph)) {
+    const wind = Math.round(w.wind_speed_kph);
+    parts.push(wind >= 20 ? "Windy—cap/hood helps" : "Light winds");
+  }
+
+  if (isNum(w.humidity)) {
+    const h = Math.round(w.humidity);
+    parts.push(h >= 75 ? "Humid—carry water" : "Comfortable humidity");
+  }
+
+  // Fall back to the API summary/condition
+  if (w.summary || w.condition) parts.unshift(w.summary || w.condition);
+
+  return parts.join(" · ");
+}
+
+/* ------------ small UI piece ------------ */
+function EmptyHint({ text }) {
+  return (
+    <div className="rounded-lg border border-dashed p-4 text-sm text-slate-500 bg-[#FAFAFA]">
+      {text}
     </div>
   );
 }

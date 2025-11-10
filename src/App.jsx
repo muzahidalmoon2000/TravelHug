@@ -1,6 +1,14 @@
-import Test from "./components/Test.jsx";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
 import Home from "./page/Home.jsx";
+import TravelPlan from "./page/TravelPlan.jsx";
 
 export default function App() {
-  return <Test />;
+  return (
+    <BrowserRouter>
+    <Routes>
+      <Route path="/" element={<Home />} />
+      <Route path="/plan" element={<TravelPlan />} />
+    </Routes>
+    </BrowserRouter>
+  );
 }
