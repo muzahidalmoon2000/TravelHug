@@ -4,6 +4,8 @@ import { useLocation, useNavigate } from "react-router-dom";
 import Container from "../components/ui/Container.jsx";
 import { getLastPlan } from "./HeroPlanner.jsx";
 import { ChevronLeft, ChevronRight, Images } from "lucide-react";
+import ExtraInfoSection from "./ExtraInfoSection.jsx";
+import InfoModal from "./InfoModal.jsx";
 import {
   Clock3,
   BadgeDollarSign,
@@ -116,6 +118,8 @@ export default function PlanSection() {
   const morning = useMemo(() => splitCards(dayData.morning), [dayData]);
   const afternoon = useMemo(() => splitCards(dayData.afternoon), [dayData]);
   const evening = useMemo(() => splitCards(dayData.evening), [dayData]);
+   const [extrasOpen, setExtrasOpen] = useState(false);
+  const [activeExtra, setActiveExtra] = useState(null); // 'get_in' | 'core_insights' | 'local_events' | 'useful_links' | 'packing'
   const weather = dayData.weather;
 
   // Images for hero slider (supports both shapes just in case)
@@ -131,6 +135,15 @@ export default function PlanSection() {
     (tab === "evening" && dayData.evening?.description) ||
     itinerary?.title ||
     `Your personalized plan for ${destination}.`;
+
+    const extras = {
+    get_in: root?.get_in,
+    core_insights: root?.core_insights,
+    local_events: root?.local_events || [],
+    useful_links: root?.useful_links || [],
+    packing: root?.packing_recommendations,
+  };
+
 
   const panelLeftTitle = "Food & Culture";
   const panelLeftBody =
@@ -558,8 +571,23 @@ function HeroImageCarousel({ images = [], destination }) {
               )}
             </div>
           </div>
+                    {/* NEW: Trip extras section */}
+          <ExtraInfoSection
+            destination={destination}
+            extras={extras}
+            open={extrasOpen}
+            onToggle={() => setExtrasOpen((v) => !v)}
+            onCardClick={(kind) => setActiveExtra(kind)}
+          />
         </div>
       </Container>
+            {/* NEW: modal for the extras cards */}
+      <InfoModal
+        destination={destination}
+        extras={extras}
+        kind={activeExtra}
+        onClose={() => setActiveExtra(null)}
+      />
     </section>
   );
 }

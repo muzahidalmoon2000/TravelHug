@@ -16,13 +16,12 @@ function Col({ title, links }) {
 
 export default function Footer() {
   return (
-    <footer className="bg-[#0f766e] text-teal-50 pt-12">
+    <footer className="bg-[#222222] text-teal-50 pt-12">
       <Container>
         <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
           <div className="md:col-span-2">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-orange-400" />
-              <div className="text-xl font-black">TravelHug</div>
+              <img src="/src/assets/LogoWhite.svg" alt="TravelHug Logo" className="" />
             </div>
             <div className="mt-3 text-teal-100">Next-level getaways start here. Plan, book, and explore with confidence.</div>
             <a href="tel:18002228888" className="mt-4 inline-flex items-center gap-2 font-semibold"><Phone size={18} /> 1-800-222-8888</a>
