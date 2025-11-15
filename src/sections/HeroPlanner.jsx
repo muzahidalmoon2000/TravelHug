@@ -16,6 +16,7 @@ import { useNavigate } from "react-router-dom";
 
 /** Static trip types */
 const TRIP_MODES = ["solo", "family", "partner", "friends"];
+let plans = null
 
 export default function HeroPlanner() {
   return (
@@ -78,6 +79,7 @@ function PlannerForm() {
   const searchBoxRef = useRef(null);
   const debounceRef = useRef(null);
 
+
   // validation messages
   const [errs, setErrs] = useState({
     place: "",
@@ -90,6 +92,11 @@ function PlannerForm() {
   // submit state
   const [submitting, setSubmitting] = useState(false);
   const [okMsg, setOkMsg] = useState("");
+  const [errorOverlay, setErrorOverlay] = useState({
+    show: false,
+    message: "Something went wrong",
+  });
+  const lastBodyRef = useRef(null); // keep last request body for retry
 
   // today (yyyy-mm-dd) from LOCAL time (avoid UTC shift)
   const toLocalYMD = (d) => {
@@ -195,11 +202,9 @@ function PlannerForm() {
       travel_type: (firstPref?.slug || firstPref?.label || "")
         .toString()
         .toLowerCase(),
-      preferences: selectedPrefIds, // optional
       budget_type: (budget?.slug || budget?.label || "")
         .toString()
         .toLowerCase(),
-      trip_mode: tripMode,
       person_count: tripMode === "solo" ? 1 : tripMode === "partner" ? 2 : people,
       start_date: start,
       end_date: end,
@@ -207,8 +212,13 @@ function PlannerForm() {
       latitude: selectedPlace?.latitude ?? selectedPlace?.lat ?? null,
       longitude: selectedPlace?.longitude ?? selectedPlace?.lng ?? null,
     };
+    console.log("Submitting plan:", body);
+    lastBodyRef.current = body; // save for retry
+    await createPlan(body);
+  };
 
-    try {
+  const createPlan = async (body) => {
+        try {
       setSubmitting(true);
       const response = await apiClient.post("/api/v1/planner/plan", body);
       setOkMsg("Plan created successfully.");
@@ -216,16 +226,34 @@ function PlannerForm() {
       const plan = response.data;
 
       // Save so /plan works even on hard refresh
-      localStorage.setItem("lastPlan", JSON.stringify(plan));
+      // localStorage.setItem("lastPlan", JSON.stringify(plan));
 
+      plans = plan;
+      console.log("Created plan:", plans);
       // Also pass via router state for immediate render
       navigate("/plan", { state: { plan }, replace: true });
     } catch (e) {
+      console.log("Create plan:", body);
+      console.log("Error response:",lastBodyRef.current);
       setOkMsg("");
       console.error(e?.response?.data || e.message);
-      alert(e?.response?.data?.detail || e.message || "Failed to create plan.");
+    setErrorOverlay({
+        show: true,
+        message:
+          "Something went wrong. Please try again.", // mask internal errors
+      });
     } finally {
       setSubmitting(false);
+    }
+  }
+
+
+
+    // retry handler for the overlay
+  const handleRetry = async () => {
+    setErrorOverlay((s) => ({ ...s, show: false }));
+    if (lastBodyRef.current) {
+      await createPlan(lastBodyRef.current);
     }
   };
 
@@ -241,6 +269,15 @@ function PlannerForm() {
         quoteBottom="Great trips are created."
         backgroundImage={heroBg}
       />
+
+                  {/* Error overlay with Try Again */}
+            <ErrorOverlay
+              show={errorOverlay.show}
+              message={errorOverlay.message}
+              backgroundImage={heroBg}
+              onRetry={handleRetry}
+              onClose={() => setErrorOverlay((s) => ({ ...s, show: false }))}
+            />
 
       <div className="w-full max-w-2xl">
         {/* Destination search */}
@@ -640,14 +677,14 @@ function LoadingOverlay({ show, quoteTop, quoteBottom, backgroundImage }) {
       `}</style>
 
       <div className="flex flex-col items-center px-6 text-center">
-          <div class="lan mb-2 w-[250px]">
-          <div class="bar w-[100%] h-[10px] bg-amber-500 rounded-[8px]"></div>
-          <div class="balls mt-[100px] flex">
-            <div class="ball ball--start bg-amber-600 w-[50px] h-[50px] rounded-[50%]"></div>
-            <div class="ball bg-amber-600 w-[50px] h-[50px] rounded-[50%]"></div>
-            <div class="ball bg-amber-600 w-[50px] h-[50px] rounded-[50%]"></div>
-            <div class="ball bg-amber-600 w-[50px] h-[50px] rounded-[50%]"></div>
-            <div class="ball ball--end bg-amber-600 w-[50px] h-[50px] rounded-[50%]"></div>
+          <div className="lan mb-2 w-[250px]">
+          <div className="bar w-[100%] h-[10px] bg-amber-500 rounded-[8px]"></div>
+          <div className="balls mt-[100px] flex">
+            <div className="ball ball--start bg-amber-600 w-[50px] h-[50px] rounded-[50%]"></div>
+            <div className="ball bg-amber-600 w-[50px] h-[50px] rounded-[50%]"></div>
+            <div className="ball bg-amber-600 w-[50px] h-[50px] rounded-[50%]"></div>
+            <div className="ball bg-amber-600 w-[50px] h-[50px] rounded-[50%]"></div>
+            <div className="ball ball--end bg-amber-600 w-[50px] h-[50px] rounded-[50%]"></div>
           </div>
         </div>
 
@@ -660,8 +697,60 @@ function LoadingOverlay({ show, quoteTop, quoteBottom, backgroundImage }) {
   );
 }
 
+/* ---------- Error Overlay with “Try Again” ---------- */
+function ErrorOverlay({ show, message, onRetry, onClose, backgroundImage }) {
+  if (!show) return null;
+  return (
+    <div
+      className="fixed inset-0 z-[110] flex items-center justify-center"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Request error"
+      style={{
+        backgroundImage: `linear-gradient(rgba(255,243,234,0.92), rgba(255,243,234,0.92)), url(${backgroundImage})`,
+        backgroundRepeat: "no-repeat",
+        backgroundSize: "cover",
+        backgroundPosition: "center bottom",
+      }}
+    >
+      <div className="bg-white/90 backdrop-blur-sm border border-[#F2E8E2] rounded-2xl shadow-lg w-[90%] max-w-md px-6 py-6 text-center">
+        <h3 className="text-slate-800 font-extrabold text-xl">Something went wrong</h3>
+        <p className="mt-2 text-slate-600">{message}</p>
+        <div className="mt-5 flex items-center justify-center gap-3">
+          <button
+            onClick={onRetry}
+            className="h-11 px-5 rounded-[6px] bg-[#ED6F2E] hover:bg-[#e36522] text-white font-semibold"
+          >
+            Try Again
+          </button>
+          <button
+            onClick={onClose}
+            className="h-11 px-4 rounded-[6px] border border-[#E5DED8] text-slate-700 font-semibold bg-white"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 
 /* util */
 function capital(s) {
   return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+
+
+export function setLastPlan(plan) {
+  plans = plan;
+}
+
+export function getLastPlan() {
+  if (plans) {
+    return JSON.stringify(plans);
+  } else {
+    return null;
+  }
 }

@@ -1,7 +1,9 @@
 // src/sections/PlanSection.jsx
-import { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import Container from "../components/ui/Container.jsx";
+import { getLastPlan } from "./HeroPlanner.jsx";
+import { ChevronLeft, ChevronRight, Images } from "lucide-react";
 import {
   Clock3,
   BadgeDollarSign,
@@ -27,7 +29,7 @@ const c = {
   border: "#EFE7E1",
   borderSoft: "#E6E1DC",
   teal: "#0F766E",
-  tealSoft: "#E7FAF7",
+  tealSoft: "#FEF6EE",
   tealSide: "#E7F8FB",
   tealSideBorder: "#BEE7F1",
   tealMustBorder: "#BDE6DE",
@@ -86,9 +88,8 @@ function formatDate(iso) {
 export default function PlanSection() {
   const { state } = useLocation();
   const navigate = useNavigate();
-
   const fromState = state?.plan ?? null;
-  const fromStorage = !fromState ? safeParse(localStorage.getItem("lastPlan")) : null;
+  const fromStorage = !fromState ? safeParse(getLastPlan()) : null;
   const plan = fromState || fromStorage;
 
   useEffect(() => {
@@ -117,6 +118,13 @@ export default function PlanSection() {
   const evening = useMemo(() => splitCards(dayData.evening), [dayData]);
   const weather = dayData.weather;
 
+  // Images for hero slider (supports both shapes just in case)
+  const heroImages =
+    Array.isArray(root?.destination_images) ? root.destination_images :
+    Array.isArray(root?.itinerary?.destination_images) ? root.itinerary.destination_images :
+    [];
+
+
   const intro =
     (tab === "morning" && dayData.morning?.description) ||
     (tab === "afternoon" && dayData.afternoon?.description) ||
@@ -143,26 +151,292 @@ export default function PlanSection() {
   const dataForTab =
     tab === "morning" ? morning : tab === "afternoon" ? afternoon : evening;
 
+// Hero Images Start
+
+// --- Drop-in replacement for HeroImageCarousel (4-across, infinite, draggable) ---
+function HeroImageCarousel({ images = [], destination }) {
+  const VISIBLE = 4; // how many tiles are visible at once
+  const STEP = 1;    // move by 1 image
+
+  const list = React.useMemo(
+    () => images.filter(Boolean),
+    [images]
+  );
+
+  // No images -> nothing to show
+  if (!list.length) return null;
+
+  // If <= 4 images, show static row (still with 20px gaps)
+  if (list.length <= VISIBLE) {
+    // pad to 4 so layout stays consistent
+    const padded = [...list];
+    while (padded.length < VISIBLE) padded.push(null);
+
+    return (
+      <div className="mt-2 w-full overflow-hidden rounded-2xl">
+        <div className="flex">
+          {padded.map((src, i) => (
+            <div
+              key={i}
+              className="basis-1/4 shrink-0 grow-0 px-2.5"
+            >
+              <div className="h-40 md:h-56 overflow-hidden rounded-xl bg-neutral-200">
+                {src && (
+                  <img
+                    src={src}
+                    alt={`${destination || "Destination"} photo ${i + 1}`}
+                    loading="lazy"
+                    className="h-full w-full object-cover"
+                    draggable={false}
+                  />
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // --- Infinite carousel setup: [last 4, ...list, first 4] ---
+  const extended = React.useMemo(() => {
+    const head = list.slice(0, VISIBLE);
+    const tail = list.slice(-VISIBLE);
+    return [...tail, ...list, ...head];
+  }, [list]);
+
+  const count = list.length;
+
+  // index = left-most visible tile in `extended`
+  const [index, setIndex] = React.useState(VISIBLE);
+  const [transition, setTransition] = React.useState(true);
+
+  // drag state
+  const drag = React.useRef({
+    active: false,
+    startX: 0,
+    dx: 0,
+  });
+
+  const containerRef = React.useRef(null);
+
+  // --- Autoplay ---
+  const AUTOPLAY_MS = 5000;
+  const RESUME_DELAY_MS = 2500;
+  const timerRef = React.useRef(null);
+  const resumeRef = React.useRef(null);
+
+  const stopAutoplay = React.useCallback(() => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = null;
+    if (resumeRef.current) {
+      clearTimeout(resumeRef.current);
+      resumeRef.current = null;
+    }
+  }, []);
+
+  const startAutoplay = React.useCallback(
+    (delay = AUTOPLAY_MS) => {
+      stopAutoplay();
+      timerRef.current = setInterval(() => {
+        setTransition(true);
+        setIndex((i) => i + STEP);
+      }, delay);
+    },
+    [stopAutoplay]
+  );
+
+  const pauseAndResume = React.useCallback(() => {
+    stopAutoplay();
+    resumeRef.current = setTimeout(
+      () => startAutoplay(AUTOPLAY_MS),
+      RESUME_DELAY_MS
+    );
+  }, [startAutoplay, stopAutoplay]);
+
+  const go = React.useCallback(
+    (delta, { user = true } = {}) => {
+      if (user) pauseAndResume();
+      setTransition(true);
+      setIndex((i) => i + delta * STEP);
+    },
+    [pauseAndResume]
+  );
+
+  React.useEffect(() => {
+    startAutoplay(AUTOPLAY_MS);
+
+    const onVisibility = () => {
+      if (document.hidden) stopAutoplay();
+      else startAutoplay(AUTOPLAY_MS);
+    };
+
+    window.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      stopAutoplay();
+      window.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [startAutoplay, stopAutoplay]);
+
+  // Keyboard navigation
+  React.useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === "ArrowLeft") go(-1);
+      if (e.key === "ArrowRight") go(1);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [go]);
+
+  // Handle seamless wrap when we cross into clones
+  const onTransitionEnd = () => {
+    if (index < VISIBLE) {
+      // went into left clones -> jump right by `count`
+      setTransition(false);
+      setIndex(index + count);
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => setTransition(true))
+      );
+    } else if (index >= count + VISIBLE) {
+      // went into right clones -> jump left by `count`
+      setTransition(false);
+      setIndex(index - count);
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => setTransition(true))
+      );
+    }
+  };
+
+  // --- Dragging with pointer events ---
+  const onPointerDown = (e) => {
+    pauseAndResume();
+    drag.current.active = true;
+    drag.current.startX = e.clientX;
+    drag.current.dx = 0;
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+  };
+
+  const onPointerMove = (e) => {
+    if (!drag.current.active) return;
+    drag.current.dx = e.clientX - drag.current.startX;
+    if (transition) setTransition(false);
+  };
+
+  const onPointerUp = () => {
+    if (!drag.current.active) return;
+    const dx = drag.current.dx;
+    drag.current.active = false;
+    drag.current.dx = 0;
+    setTransition(true);
+
+    const threshold = 40; // px
+    if (Math.abs(dx) > threshold) {
+      go(dx < 0 ? 1 : -1);
+    } else {
+      setIndex((i) => i); // snap back
+    }
+  };
+
+  // --- Transform calculation ---
+  const containerWidth =
+    containerRef.current?.offsetWidth || 1;
+
+  const dragShiftPct =
+    drag.current.active && containerWidth
+      ? (drag.current.dx / containerWidth) * 100
+      : 0;
+
+  const style = {
+    // each tile is 25% of width -> 100 / VISIBLE
+    transform: `translateX(calc(-${
+      index * (100 / VISIBLE)
+    }% + ${dragShiftPct}%))`,
+    transition: transition ? "transform 0.45s ease" : "none",
+  };
+
+  return (
+    <div
+      ref={containerRef}
+      className="relative mt-2 w-full overflow-hidden rounded-2xl select-none"
+      onMouseEnter={stopAutoplay}
+      onMouseLeave={pauseAndResume}
+      onFocus={stopAutoplay}
+      onBlur={pauseAndResume}
+    >
+      {/* Track */}
+      <div
+        className="flex"
+        style={style}
+        onTransitionEnd={onTransitionEnd}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
+      >
+        {extended.map((src, i) => (
+          <div
+            key={i}
+            className="basis-1/4 shrink-0 grow-0 px-2.5"
+          >
+            <div className="h-40 md:h-56 overflow-hidden rounded-xl bg-neutral-200">
+              <img
+                src={src}
+                alt={`${destination || "Destination"} photo ${i + 1}`}
+                loading="lazy"
+                className="h-full w-full object-cover"
+                draggable={false}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Controls */}
+      <button
+        type="button"
+        onClick={() => go(-1)}
+        className="absolute left-3 top-1/2 -translate-y-1/2 rounded-full bg-white/80 p-2 shadow hover:bg-white"
+        aria-label="Previous"
+      >
+        <ChevronLeft size={20} />
+      </button>
+      <button
+        type="button"
+        onClick={() => go(1)}
+        className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full bg-white/80 p-2 shadow hover:bg-white"
+        aria-label="Next"
+      >
+        <ChevronRight size={20} />
+      </button>
+    </div>
+  );
+}
+
+
+// Hero images End
+
   return (
     <section id="plan" style={{ background: c.bg }}>
       <Container>
+
         <div className="py-10">
+        {heroImages.length > 0 && (
+          <HeroImageCarousel images={heroImages} destination={destination} />
+        )}
           {/* Title */}
           <h3
-            className="text-[28px] sm:text-[32px] font-extrabold"
-            style={{ color: c.text }}
+            className="text-[28px] sm:text-[32px] font-extrabold text-[#187A85]"
           >
-            {destination ? `${destination} – ${days.length}-Day Travel Plan` : "Travel Plan"}
+            {destination
+              ? `${destination} – ${days.length}-Day Travel Plan`
+              : "Travel Plan"}
           </h3>
-          {firstDayDate && (
-            <div
-              className="mt-1 text-[18px] font-semibold"
-              style={{ color: c.orange }}
-            >
-              {firstDayDate}
-            </div>
-          )}
-
+          <div
+            className="mt-1 text-[18px] font-semibold"
+            style={{ color: c.orange }}
+          >
+            {formatDate(dayData.day_date)}
+          </div>
           {/* Days bar */}
           <div className="mt-5 w-full">
             <div
@@ -209,7 +483,7 @@ export default function PlanSection() {
                   );
                 })}
                 <div
-                  className="absolute left-0 right-0 bottom-0 h-px"
+                  className="absolute left-0 right-0 bottom-0 h-[3px]"
                   style={{ background: c.border }}
                 />
                 <div
@@ -300,6 +574,9 @@ function WeatherBoard({ destination, date, w }) {
     );
   }
 
+
+
+  
   const hi = isNum(w.temp_max) ? Math.round(w.temp_max) : "—";
   const lo = isNum(w.temp_min) ? Math.round(w.temp_min) : "—";
   const rain = isNum(w.chance_rain) ? Math.round(w.chance_rain) : "—";
@@ -382,20 +659,20 @@ function ActivityCard({ kind = "must", title, blurb, duration, price, map }) {
 
   return (
     <div
-      className="rounded-[12px] border overflow-hidden"
-      style={{ background: bg, borderColor: border }}
+      className="rounded-[12px] overflow-hidden"
+      style={{ background: bg }}
     >
       <div className="px-3 pt-3 flex items-center justify-between">
-        <div className="flex items-center gap-2 text-sm text-[#0B3F3B]">
+        {/* <div className="flex items-center gap-2 text-sm text-[#0B3F3B]">
           <Icon size={16} className="text-[#0F766E]" />
           <span className="font-semibold">{isMust ? "Must-Do" : "Side Activity"}</span>
-        </div>
-        <button
+        </div> */}
+        {/* <button
           className="inline-flex items-center gap-1 text-[12px] font-semibold text-white px-3 py-1 rounded-full"
           style={{ background: c.orange }}
         >
           <Edit3 size={14} /> Modify
-        </button>
+        </button> */}
       </div>
 
       <div className="px-3 pb-3">
