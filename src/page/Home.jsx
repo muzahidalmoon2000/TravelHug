@@ -22,7 +22,7 @@ export default function Home() {
 
   return (
     <main className="bg-white text-slate-900">
-      <PromoBar />
+      {/* <PromoBar /> */}
       {/* pass an opener into Header */}
       <Header onOpenPlans={() => setShowPlans(true)} />
 

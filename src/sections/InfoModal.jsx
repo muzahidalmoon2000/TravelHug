@@ -103,7 +103,7 @@ const c = {
     return (
       <div className="space-y-4 text-sm leading-relaxed text-slate-700">
         {sections.map((s) => (
-          <div key={s.label}>
+          <div key={s.label} className="space-y-1 bg-[#f5f5f5] p-3 rounded-lg" style={{ borderColor: c.border }}>
             <h3 className="text-sm font-semibold text-slate-900">
               {s.label}
             </h3>

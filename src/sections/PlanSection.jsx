@@ -5,7 +5,7 @@ import Container from "../components/ui/Container.jsx";
 import { getLastPlan } from "./HeroPlanner.jsx";
 import { ChevronLeft, ChevronRight, Images } from "lucide-react";
 import ExtraInfoSection from "./ExtraInfoSection.jsx";
-import InfoModal from "./InfoModal.jsx";
+// import InfoModal from "./InfoModal.jsx";
 import {
   Clock3,
   BadgeDollarSign,
@@ -582,12 +582,12 @@ function HeroImageCarousel({ images = [], destination }) {
         </div>
       </Container>
             {/* NEW: modal for the extras cards */}
-      <InfoModal
+      {/* <InfoModal
         destination={destination}
         extras={extras}
         kind={activeExtra}
         onClose={() => setActiveExtra(null)}
-      />
+      /> */}
     </section>
   );
 }

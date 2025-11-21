@@ -22,10 +22,10 @@ export default function Header({ onOpenPlans }) {
             Plan
           </button>
 
-          <a className="hover:text-teal-700" href="#about">About</a>
-          <a className="hover:text-teal-700" href="#testimonials">Testimonial</a>
-          <a className="hover:text-teal-700" href="#blog">Blog</a>
-          <a className="hover:text-teal-700" href="#contact">Contact</a>
+          <a className="hover:text-teal-700" href="/#about">About</a>
+          <a className="hover:text-teal-700" href="/#testimonials">Testimonial</a>
+          <a className="hover:text-teal-700" href="/#blog">Blog</a>
+          <a className="hover:text-teal-700" href="/#contact">Contact</a>
         </nav>
       </Container>
     </header>
