@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "proxy": "http://localhost:8000",
+  "proxy": "https://api.travelhug.ai",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -16,6 +16,7 @@
     "lucide-react": "^0.548.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
+    "react-markdown": "^10.1.0",
     "react-router-dom": "^7.9.4",
     "tailwindcss": "^4.1.15"
   },

@@ -7,9 +7,9 @@ export default function AboutUs() {
       <Container>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
           <div>
-            <Card className="overflow-hidden">
-              <div className="aspect-[4/3] bg-[url('https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?q=80&w=1600&auto=format&fit=crop')] bg-cover bg-center" />
-            </Card>
+            <div className="overflow-hidden">
+              <img src="src/assets/travel.png" alt="" />
+            </div>
           </div>
           <div>
             <div className="mb-6">
