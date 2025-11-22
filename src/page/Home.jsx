@@ -28,11 +28,11 @@ export default function Home() {
 
       {/* rest of the page */}
       <HeroPlanner />
-      <HowToGetIn />
+      {/* <HowToGetIn /> */}
       <AboutUs />
-      <Testimonials />
+      {/* <Testimonials /> */}
       <AppPromo />
-      <BlogSection />
+      {/* <BlogSection /> */}
       <Footer />
 
  <PlansSidebar open={showPlans} onClose={() => setShowPlans(false)} />

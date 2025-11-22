@@ -16,7 +16,7 @@ function TravelPlan() {
     }, []);
   return (
     <>
-      <PromoBar />
+      {/* <PromoBar /> */}
     <Header onOpenPlans={() => setShowPlans(true)} />
     <main className="bg-white text-slate-900">
             {/* DRAWER */}

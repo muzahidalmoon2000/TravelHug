@@ -21,7 +21,8 @@ import {
   Gauge,
   Eye,
   CloudRain,
-  Thermometer
+  Thermometer,
+    X, 
 } from "lucide-react";
 
 /** Design tokens */
@@ -51,6 +52,7 @@ const TABS = [
 /* ------------ API -> UI helpers ------------ */
 function splitCards(block) {
   if (!block) return { must: [], side: [] };
+
   const must = (block.must_do || []).map((m) => ({
     kind: "must",
     title: m.title,
@@ -58,7 +60,12 @@ function splitCards(block) {
     duration: m.duration,
     price: m.price || (m.is_free ? "Free" : undefined),
     map: m.map_location,
+    why_special: m.why_special,
+    best_time: m.best_time,
+    insider_tip: m.insider_tip,
+    is_free: !!m.is_free,
   }));
+
   const side = (block.side_activities || []).map((s) => ({
     kind: "side",
     title: s.title,
@@ -66,9 +73,15 @@ function splitCards(block) {
     duration: s.duration,
     price: s.price || (s.is_free ? "Free" : undefined),
     map: s.map_location,
+    why_special: s.why_special,
+    best_time: s.best_time,
+    insider_tip: s.insider_tip,
+    is_free: !!s.is_free,
   }));
+
   return { must, side };
 }
+
 
 function dayLabel(idx) {
   return `Day ${idx + 1}`;
@@ -109,7 +122,7 @@ export default function PlanSection() {
 
   const [activeDay, setActiveDay] = useState(0);
   const [tab, setTab] = useState("morning");
-
+  const [activeActivity, setActiveActivity] = useState(null);
   const underlineIndex = TABS.findIndex((t) => t.value === tab);
   const underlineLeft = `${(underlineIndex / TABS.length) * 100}%`;
   const underlineWidth = `${(1 / TABS.length) * 100}%`;
@@ -127,6 +140,13 @@ export default function PlanSection() {
     Array.isArray(root?.destination_images) ? root.destination_images :
     Array.isArray(root?.itinerary?.destination_images) ? root.itinerary.destination_images :
     [];
+
+    // Whenever a new plan object is loaded, reset to Day 1 & Morning tab
+  useEffect(() => {
+    setActiveDay(0);
+    setTab("morning");
+  }, [plan]);
+
 
 
   const intro =
@@ -538,13 +558,18 @@ function HeroImageCarousel({ images = [], destination }) {
                     <Sparkles size={16} className="text-[#0F766E]" /> Must-Do
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {dataForTab.must.length > 0 ? (
-                      dataForTab.must.map((card, i) => (
-                        <ActivityCard key={`must-${tab}-${i}`} {...card} />
-                      ))
-                    ) : (
-                      <EmptyHint text="No must-do activities provided for this block." />
-                    )}
+                        {dataForTab.must.length > 0 ? (
+                          dataForTab.must.map((card, i) => (
+                            <ActivityCard
+                              key={`must-${tab}-${i}`}
+                              {...card}
+                              onClick={() => setActiveActivity(card)}
+                            />
+                          ))
+                        ) : (
+                          <EmptyHint text="No must-do activities provided for this block." />
+                        )}
+
                   </div>
 
                   {/* Side-Activities row */}
@@ -555,7 +580,11 @@ function HeroImageCarousel({ images = [], destination }) {
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {dataForTab.side.length > 0 ? (
                       dataForTab.side.map((card, i) => (
-                        <ActivityCard key={`side-${tab}-${i}`} {...card} />
+                        <ActivityCard
+                          key={`side-${tab}-${i}`}
+                          {...card}
+                          onClick={() => setActiveActivity(card)}
+                        />
                       ))
                     ) : (
                       <EmptyHint text="No side activities provided for this block." />
@@ -588,6 +617,10 @@ function HeroImageCarousel({ images = [], destination }) {
         kind={activeExtra}
         onClose={() => setActiveExtra(null)}
       /> */}
+            <ActivityModal
+        activity={activeActivity}
+        onClose={() => setActiveActivity(null)}
+      />
     </section>
   );
 }
@@ -678,29 +711,111 @@ function DetailTile({ icon, title, value }) {
   );
 }
 
+function ActivityModal({ activity, onClose }) {
+  if (!activity) return null;
+
+  const {
+    title,
+    blurb,
+    duration,
+    price,
+    why_special,
+    best_time,
+    insider_tip,
+    is_free,
+  } = activity;
+
+  const rows = [
+    { label: "Duration", value: duration },
+    { label: "Price", value: price },
+    {
+      label: "Is Free",
+      value:
+        typeof is_free === "boolean"
+          ? is_free
+            ? "Yes"
+            : "No"
+          : undefined,
+    },
+    { label: "Why Special", value: why_special },
+    { label: "Best Time", value: best_time },
+    { label: "Insider Tips", value: insider_tip },
+  ].filter((r) => r.value);
+
+  return (
+    <div className="fixed inset-0 z-40 flex items-center justify-center">
+      {/* overlay */}
+      <div
+        className="absolute inset-0 bg-black/40"
+        onClick={onClose}
+      />
+
+      {/* modal card */}
+      <div className="relative z-50 w-full max-w-lg rounded-2xl bg-white shadow-2xl px-6 py-6">
+        {/* close button */}
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute right-3 top-3 inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200"
+          aria-label="Close"
+        >
+          <X size={18} />
+        </button>
+
+        <h3 className="text-xl font-bold text-[#187A85] text-center">
+          {title}
+        </h3>
+
+        {blurb && (
+          <p className="mt-3 text-sm leading-relaxed text-slate-700">
+            {blurb}
+          </p>
+        )}
+
+        <div className="mt-5 space-y-2 text-sm">
+          {rows.map((row) => (
+            <p key={row.label} className="leading-relaxed">
+              <span className="font-semibold text-[#ED6F2E]">
+                {row.label}:
+              </span>{" "}
+              <span className="text-slate-800">{row.value}</span>
+            </p>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
 /* ------------ Pieces (activity rows) ------------ */
-function ActivityCard({ kind = "must", title, blurb, duration, price, map }) {
+function ActivityCard({
+  kind = "must",
+  title,
+  blurb,
+  duration,
+  price,
+  map,
+  why_special,
+  best_time,
+  insider_tip,
+  is_free,
+  onClick,
+}) {
   const isMust = kind === "must";
   const bg = isMust ? c.tealSoft : c.tealSide;
   const border = isMust ? c.tealMustBorder : c.tealSideBorder;
   const Icon = isMust ? Sparkles : Landmark;
 
   return (
-    <div
-      className="rounded-[12px] overflow-hidden"
+    <button
+      type="button"
+      onClick={onClick}
+      className="w-full text-left rounded-[12px] cursor-pointer overflow-hidden focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#0F766E]"
       style={{ background: bg }}
     >
       <div className="px-3 pt-3 flex items-center justify-between">
-        {/* <div className="flex items-center gap-2 text-sm text-[#0B3F3B]">
-          <Icon size={16} className="text-[#0F766E]" />
-          <span className="font-semibold">{isMust ? "Must-Do" : "Side Activity"}</span>
-        </div> */}
-        {/* <button
-          className="inline-flex items-center gap-1 text-[12px] font-semibold text-white px-3 py-1 rounded-full"
-          style={{ background: c.orange }}
-        >
-          <Edit3 size={14} /> Modify
-        </button> */}
+        {/* You can re-enable this header if you want */}
       </div>
 
       <div className="px-3 pb-3">
@@ -727,6 +842,7 @@ function ActivityCard({ kind = "must", title, blurb, duration, price, map }) {
                 target="_blank"
                 rel="noreferrer"
                 className="underline flex items-center gap-1 bg-amber-600 p-2 rounded-full"
+                onClick={(e) => e.stopPropagation()} // don't close/open modal when clicking map
               >
                 <MapPin size={14} color="white" />
               </a>
@@ -736,9 +852,10 @@ function ActivityCard({ kind = "must", title, blurb, duration, price, map }) {
           </span>
         </div>
       </div>
-    </div>
+    </button>
   );
 }
+
 
 function Panel({ title, body }) {
   return (
@@ -812,6 +929,9 @@ function weatherTipsFrom(w) {
 
   return parts.join(" · ");
 }
+
+
+
 
 /* ------------ small UI piece ------------ */
 function EmptyHint({ text }) {

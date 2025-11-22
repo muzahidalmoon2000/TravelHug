@@ -5,7 +5,8 @@ import {
   Sparkles,
   Landmark,
   Cloud,
-  Gauge
+  Gauge,
+  Disc
 } from "lucide-react";
 
 /** Design tokens */
@@ -53,35 +54,44 @@ function ExtraInfoSection({ destination, extras }) {
       </div>
 
       <div className="mt-4 space-y-5">
+        {packing && (
+          <SectionCard
+            icon={<Gauge size={18} className="text-[#0F766E]" />}
+            title="Packing Recommendations"
+            description="What to bring based on your weather and activities."
+          >
+            {renderPacking(packing)}
+          </SectionCard>
+        )}
+          {core_insights && (
+            <SectionCard
+              icon={<Sparkles size={18} className="text-[#0F766E]" />}
+              title={`Core Insight`}
+              description="A short story of the city – past, present and future."
+            >
+              {renderCoreInsights(core_insights)}
+            </SectionCard>
+          )}
+          
+                  {local_events.length > 0 && (
+                    <SectionCard
+                      icon={<Landmark size={18} className="text-[#0F766E]" />}
+                      title="Local Events & Festivals"
+                      description="Things happening in and around your travel window."
+                    >
+                      {renderLocalEvents(local_events)}
+                    </SectionCard>
+                  )}
         {get_in && (
           <SectionCard
             icon={<MapPin size={18} className="text-[#0F766E]" />}
-            title={`Getting in & around ${destination}`}
+            title={`Getting in & Around`}
             description="Arrival options, entry tips and how to move around once you land."
           >
             {renderGetIn(get_in)}
           </SectionCard>
         )}
 
-        {core_insights && (
-          <SectionCard
-            icon={<Sparkles size={18} className="text-[#0F766E]" />}
-            title={`${destination}: Core insight`}
-            description="A short story of the city – past, present and future."
-          >
-            {renderCoreInsights(core_insights)}
-          </SectionCard>
-        )}
-
-        {local_events.length > 0 && (
-          <SectionCard
-            icon={<Landmark size={18} className="text-[#0F766E]" />}
-            title="Local events & festivals"
-            description="Things happening in and around your travel window."
-          >
-            {renderLocalEvents(local_events)}
-          </SectionCard>
-        )}
 
         {useful_links.length > 0 && (
           <SectionCard
@@ -93,15 +103,6 @@ function ExtraInfoSection({ destination, extras }) {
           </SectionCard>
         )}
 
-        {packing && (
-          <SectionCard
-            icon={<Gauge size={18} className="text-[#0F766E]" />}
-            title="Packing recommendations"
-            description="What to bring based on your weather and activities."
-          >
-            {renderPacking(packing)}
-          </SectionCard>
-        )}
       </div>
     </div>
   );
@@ -112,7 +113,7 @@ function ExtraInfoSection({ destination, extras }) {
 function MarkdownBlock({ source }) {
   if (!source || !String(source).trim()) return null;
   return (
-    <div className="space-y-3 text-sm leading-relaxed text-slate-700">
+    <div id="header-md-text" className="space-y-3 text-sm leading-relaxed text-slate-700 list-md-text">
       <ReactMarkdown>{source}</ReactMarkdown>
     </div>
   );
@@ -230,7 +231,7 @@ function renderGetIn(get_in) {
           </h3>
 
           {/* ⬇️ Render each field as GitHub-style Markdown */}
-          <div className="mt-1 prose prose-sm max-w-none text-slate-700">
+          <div className="mt-1 prose prose-sm max-w-none text-slate-700 list-md-text">
             <ReactMarkdown>{s.value}</ReactMarkdown>
           </div>
         </div>
