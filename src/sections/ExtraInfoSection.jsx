@@ -6,7 +6,11 @@ import {
   Landmark,
   Cloud,
   Gauge,
-  Disc
+  Disc,
+  Link,
+  ArrowRightFromLine,
+  CalendarCheck,
+  Package
 } from "lucide-react";
 
 /** Design tokens */
@@ -56,7 +60,7 @@ function ExtraInfoSection({ destination, extras }) {
       <div className="mt-4 space-y-5">
         {packing && (
           <SectionCard
-            icon={<Gauge size={18} className="text-[#0F766E]" />}
+            icon={<Package size={18} className="text-[#0F766E]" />}
             title="Packing Recommendations"
             description="What to bring based on your weather and activities."
           >
@@ -75,8 +79,8 @@ function ExtraInfoSection({ destination, extras }) {
           
                   {local_events.length > 0 && (
                     <SectionCard
-                      icon={<Landmark size={18} className="text-[#0F766E]" />}
-                      title="Local Events & Festivals"
+                      icon={<CalendarCheck size={18} className="text-[#0F766E]" />}
+                      title="Local Events"
                       description="Things happening in and around your travel window."
                     >
                       {renderLocalEvents(local_events)}
@@ -84,8 +88,8 @@ function ExtraInfoSection({ destination, extras }) {
                   )}
         {get_in && (
           <SectionCard
-            icon={<MapPin size={18} className="text-[#0F766E]" />}
-            title={`Getting in & Around`}
+            icon={<ArrowRightFromLine size={18} className="text-[#0F766E]" />}
+            title={`Get In`}
             description="Arrival options, entry tips and how to move around once you land."
           >
             {renderGetIn(get_in)}
@@ -95,8 +99,8 @@ function ExtraInfoSection({ destination, extras }) {
 
         {useful_links.length > 0 && (
           <SectionCard
-            icon={<Cloud size={18} className="text-[#0F766E]" />}
-            title="Useful links"
+            icon={<Link size={18} className="text-[#0F766E]" />}
+            title="Useful Links"
             description="Official sites, passes and travel tools saved for this trip."
           >
             {renderUsefulLinks(useful_links)}
@@ -322,26 +326,27 @@ function renderUsefulLinks(useful_links) {
 
   // Existing list layout
   return (
-    <ul className="space-y-3 text-sm">
+    <ul className="space-y-3 grid grid-cols-1 text-sm md:grid-cols-2 gap-3">
       {links.map((ln, idx) => (
         <li
           key={idx}
-          className="rounded-xl border bg-[#F9FAFB] p-3"
+          className="rounded-xl bg-[#f4f4f4] p-3 m-0"
           style={{ borderColor: c.border }}
         >
+          <p className="font-semibold text-[#0F766E]">{ln.title}</p>
           <a
             href={ln.url}
             target="_blank"
             rel="noreferrer"
-            className="font-semibold text-[#0F766E] underline"
+            className="p-2 mt-2 bg-[#ed6f2e] inline-block text-white rounded-sm"
           >
-            {ln.title || ln.url}
+            Learn More
           </a>
-          {ln.url && (
+          {/* {ln.url && (
             <div className="mt-1 break-all text-xs text-slate-500">
               {ln.url}
             </div>
-          )}
+          )} */}
         </li>
       ))}
     </ul>
@@ -366,7 +371,7 @@ function renderPacking(packing) {
   const groups = [
     { key: "essentials", label: "Essentials", items: packing.essentials || [] },
     { key: "clothing", label: "Clothing", items: packing.clothing || [] },
-    { key: "extras", label: "Extras", items: packing.extras || [] },
+    // { key: "extras", label: "Extras", items: packing.extras || [] },
   ].filter((g) => g.items.length);
 
   return (

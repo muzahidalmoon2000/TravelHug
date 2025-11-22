@@ -48,12 +48,12 @@ export default function Header({ onOpenPlans }) {
           <a className="hover:text-teal-700" href="/#about">
             About
           </a>
-          <a className="hover:text-teal-700" href="/#testimonials">
+          {/* <a className="hover:text-teal-700" href="/#testimonials">
             Testimonial
           </a>
           <a className="hover:text-teal-700" href="/#blog">
             Blog
-          </a>
+          </a> */}
           <a className="hover:text-teal-700" href="/#contact">
             Contact
           </a>
